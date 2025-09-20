@@ -1,0 +1,70 @@
+{
+  "name": "go-mcp-server",
+  "displayName": "GO MCP Server",
+  "description": "[WIP] A go mcp server aims for a better go language development experience through AI.",
+  "version": "0.0.1",
+  "publisher": "go-mcp-server",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xieyuschen/go-mcp-server"
+  },
+  "icon": "img/go_mcp_server_icon.jpg",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "go-mcp-server.start",
+        "title": "Start Server",
+        "category": "Go MCP Server"
+      },
+      {
+        "command": "go-mcp-server.stop",
+        "title": "Stop Server",
+        "category": "Go MCP Server"
+      },
+      {
+        "command": "go-mcp-server.restart",
+        "title": "Restart Server",
+        "category": "Go MCP Server"
+      }
+    ],
+    "configuration": {
+      "title": "Go MCP Server",
+      "properties": {
+        "go-mcp-server.port": {
+          "type": "integer",
+          "default": 8555,
+          "description": "Specifies the port number for the Go MCP server to listen on.",
+          "scope": "resource"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.104.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "eslint": "^9.34.0",
+    "typescript": "^5.9.2",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}

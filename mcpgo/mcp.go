@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -13,6 +15,13 @@ const (
 	mcpVersion = "v0.0.1"
 )
 
+var port int
+
+func init() {
+	flag.IntVar(&port, "port", 8555, "Port to listen on")
+	flag.Parse()
+}
+
 func main() {
 	// Create a server with a single tool.
 	server := mcp.NewServer(&mcp.Implementation{Name: mcpName, Version: mcpVersion}, nil)
@@ -24,9 +33,8 @@ func main() {
 	}, &mcp.StreamableHTTPOptions{JSONResponse: true})
 
 	http.Handle("/", handler)
-	port := ":8080"
-	log.Printf("Starting %s at %s", mcpName, port)
-	if err := http.ListenAndServe(port, nil); err != nil {
+	log.Printf("Starting %s at %d", mcpName, port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 		panic(err)
 	}
 }

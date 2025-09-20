@@ -2,6 +2,28 @@
 
 A go mcp server aims for a better go language development experience through AI.
 
+## Usage
+
+**go1.25** is required now, later it may allow more go versions. It listens at port `8555` by default.
+
+```
+go install github.com/xieyuschen/go-mcp-server/mcpgo@latest
+```
+
+Try the pre-release version in [vscode extension](https://marketplace.visualstudio.com/items?itemName=go-mcp-server.go-mcp-server).
+
+## Feature
+
+Current project provides a MCP server with several mcp tools. More tools will be supported later.
+HTTP streamable transport is supported now only.
+
+- [x] go: report go bin, go root and go version.
+- [x] stdlib_symbols: reports all std packages of the global go with all exported symbol details.
+- [ ] external_modules: get all referenced modules with their versions.
+- [ ] module_symbols: get all symbols from a specific version module.
+- [ ] all_modules_symbols: get all symbols from all imported modules.
+
+
 ## Motivation
 
 As a go user and a contributor, I have used Go in my daily work. Recently, I have tried some AI tools and they are pretty good and useful.
@@ -23,13 +45,3 @@ I want to check whether I have predefined functions to reuse, or slightly revise
 
 I don't aim to blame LLM here because they nataurely lacks these understanding. Hence I believe by a mcp to expose more static analysis of project is helpful.
 
-## Feature
-
-Current project provides a MCP server with several mcp tools. More tools will be supported later.
-HTTP streamable transport is supported now only.
-
-- [x] go: report go bin, go root and go version.
-- [x] stdlib_symbols: reports all std packages of the global go with all exported symbol details.
-- [ ] external_modules: get all referenced modules with their versions.
-- [ ] module_symbols: get all symbols from a specific version module.
-- [ ] all_modules_symbols: get all symbols from all imported modules.
