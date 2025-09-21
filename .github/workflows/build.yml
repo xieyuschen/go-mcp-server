@@ -1,4 +1,4 @@
-name: Go Build
+name: Go Check
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - master
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,3 +18,4 @@ jobs:
       with:
         go-version: '1.25'
     - run: go build ./mcpgo/mcp.go
+    - run: go test ./...

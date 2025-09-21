@@ -14,15 +14,12 @@ Try the pre-release version in [vscode extension](https://marketplace.visualstud
 
 ## Feature
 
-Current project provides a MCP server with several mcp tools. More tools will be supported later.
-HTTP streamable transport is supported now only.
-
-- [x] go: report go bin, go root and go version.
-- [x] stdlib_symbols: reports all std packages of the global go with all exported symbol details.
-- [ ] external_modules: get all referenced modules with their versions.
-- [ ] module_symbols: get all symbols from a specific version module.
-- [ ] all_modules_symbols: get all symbols from all imported modules.
-
+- [x] go_info: reports the Go environment, including GOROOT, GOBIN, and Go version.
+- [x] go_package_symbols: report all exported symbols of a given content for current project
+- [x] go_std_packages_symbols: reports all std packages of the global go with all exported symbol details.
+- [x] go_std_packages: report all available std packages with their docs, if see all symbols inside it, use go_std_packages_symbols
+- [x] project_used_modules: reports all modules used in the current project with their versions, it respects all possible go mod directives like replace.
+- [x] project_defined_packages: reports all pacakges defined by current project with their docs
 
 ## Motivation
 

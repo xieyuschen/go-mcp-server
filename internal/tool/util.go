@@ -2,26 +2,13 @@ package tool
 
 import (
 	"fmt"
+	"go/ast"
+	"go/token"
 	"os/exec"
+	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
-
-type OGoStdLib struct {
-	StdLibs map[string]Stdlib `json:"stdlibs" jsonschema:"the Go standard libraries"`
-}
-
-type Symbol struct {
-	Name     string           `json:"name" jsonschema:"the name of the symbol"`
-	Detail   string           `json:"detail" jsonschema:"the detail of the symbol, e.g., the signature of a function"`
-	Kind     filedKind        `json:"kind" jsonschema:"the kind of the symbol, e.g., function, type, variable, constant"`
-	Doc      string           `json:"doc" jsonschema:"the documentation of the symbol"`
-	Children []DocumentSymbol `json:"children,omitempty" jsonschema:"the child symbols of the symbol"`
-}
-
-type Stdlib struct {
-	Path    string   `json:"path" jsonschema:"the import path of the standard library"`
-	Docs    string   `json:"docs" jsonschema:"the documentation of the standard library"`
-	Symbols []Symbol `json:"symbols" jsonschema:"the symbols in the standard library"`
-}
 
 func gobin() ([]byte, error) {
 	return exec.Command("which", "go").Output()
@@ -42,4 +29,76 @@ func goVersion(goBin string) (string, error) {
 	}
 	goVersion := matches[1]
 	return goVersion, nil
+}
+
+func getPackageInfo(pkg *packages.Package, ignoreSymbols bool) Package {
+	symbols := []Symbol{}
+	var pkgDoc string
+	for _, file := range pkg.Syntax {
+		if file.Doc != nil {
+			pkgDoc += file.Doc.Text() + "\n"
+		}
+		if ignoreSymbols {
+			continue
+		}
+		tok := pkg.Fset.File(file.FileStart)
+		for _, _decl := range file.Decls {
+			switch decl := _decl.(type) {
+			case *ast.FuncDecl:
+				if decl.Name.Name == "_" || !ast.IsExported(decl.Name.Name) {
+					continue
+				}
+
+				sym := funcSymbol(decl)
+				sym.Doc = decl.Doc.Text()
+				symbols = append(symbols, sym)
+			case *ast.GenDecl:
+				for _, spec := range decl.Specs {
+					switch spec := spec.(type) {
+					case *ast.TypeSpec:
+						if spec.Name.Name == "_" || !ast.IsExported(spec.Name.Name) {
+							continue
+						}
+						sym := typeSymbol(tok, spec)
+						sym.Doc = decl.Doc.Text()
+						symbols = append(symbols, sym)
+					case *ast.ValueSpec:
+						for _, name := range spec.Names {
+							if name.Name == "_" || !ast.IsExported(name.Name) {
+								continue
+							}
+							vs := varSymbol(tok, spec, name, decl.Tok == token.CONST)
+							vs.Doc = decl.Doc.Text()
+							symbols = append(symbols, vs)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	p := Package{
+		Name:    pkg.Name,
+		Path:    pkg.PkgPath,
+		Docs:    strings.TrimSpace(pkgDoc),
+		Symbols: symbols,
+	}
+	if pkg.Module != nil {
+		p.ModuleName = pkg.Module.Path
+		p.ModuleVersion = pkg.Module.Version
+	}
+	return p
+}
+
+type GoListModule struct {
+	Path      string
+	Version   string
+	Main      bool
+	Indirect  bool
+	Dir       string
+	GoMod     string
+	GoVersion string
+	Error     *struct {
+		Err string
+	}
 }
