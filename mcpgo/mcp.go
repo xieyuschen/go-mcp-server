@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/xieyuschen/go-mcp-server/internal/tool"
@@ -23,6 +24,9 @@ func init() {
 }
 
 func main() {
+	// write to stdout rather than stderr otherwise vscode plugin complains.
+	log.SetOutput(os.Stdout)
+
 	// Create a server with a single tool.
 	server := mcp.NewServer(&mcp.Implementation{Name: mcpName, Version: mcpVersion}, nil)
 

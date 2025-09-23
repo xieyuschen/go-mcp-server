@@ -49,19 +49,26 @@ type Module struct {
 	GoVersion string `json:"go_version" jsonschema:"go version used in module"`
 }
 
+type Pos struct {
+	Filename string `json:"filename" jsonschema:"the filename of current position"`
+	Offset   int    `json:"offset" jsonschema:"the line of current position, offset, starting at 0"`
+	Line     int    `json:"line" jsonschema:"line number, starting at 1"`
+	Column   int    `json:"column" jsonschema:"column number, starting at 1 (byte count)"`
+}
+
 type Symbol struct {
-	Name     string           `json:"name" jsonschema:"the name of the symbol"`
-	Detail   string           `json:"detail" jsonschema:"the detail of the symbol, e.g., the signature of a function"`
-	Kind     filedKind        `json:"kind" jsonschema:"the kind of the symbol, e.g., function, type, variable, constant"`
-	Doc      string           `json:"doc" jsonschema:"the documentation of the symbol"`
-	Children []DocumentSymbol `json:"children,omitempty" jsonschema:"the child symbols of the symbol"`
+	ShortSymbol
+	FilePath string `json:"file_path" jsonschema:"the symbol's file path"`
+	Doc      string `json:"doc,omitempty" jsonschema:"the documentation of the symbol"`
+	Start    Pos    `json:"start" jsonschema:"the place this symbol starts"`
+	End      Pos    `json:"end" jsonschema:"the place this symbol ends"`
 }
 
 type Package struct {
 	Name          string   `json:"name" jsonschema:"the name of the symbol"`
-	ModuleName    string   `json:"module" jsonschema:"the associated module of a package"`
-	ModuleVersion string   `json:"module_version" jsonschema:"the associated module version of a package"`
 	Path          string   `json:"path" jsonschema:"the import path of a package"`
-	Docs          string   `json:"docs" jsonschema:"the documentation of a package"`
-	Symbols       []Symbol `json:"symbols" jsonschema:"the symbols in a package"`
+	ModuleName    string   `json:"module,omitempty" jsonschema:"the associated module of a package"`
+	ModuleVersion string   `json:"module_version,omitempty" jsonschema:"the associated module version of a package"`
+	Docs          string   `json:"docs,omitempty" jsonschema:"the documentation of a package"`
+	Symbols       []Symbol `json:"symbols,omitempty" jsonschema:"the symbols in a package"`
 }
