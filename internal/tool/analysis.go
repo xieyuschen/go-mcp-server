@@ -26,12 +26,20 @@ const (
 	Constant filedKind = "constant"
 )
 
-func funcSymbol(decl *ast.FuncDecl) Symbol {
-	s := Symbol{
+type ShortSymbol struct {
+	Name     string           `json:"name" jsonschema:"the name of the symbol"`
+	Detail   string           `json:"detail" jsonschema:"the detail of the symbol, e.g., the signature of a function"`
+	Kind     filedKind        `json:"kind" jsonschema:"the kind of the symbol, e.g., function, type, variable, constant"`
+	Children []DocumentSymbol `json:"children,omitempty" jsonschema:"the child symbols of the symbol"`
+}
+
+func funcSymbol(decl *ast.FuncDecl) ShortSymbol {
+	decl.Pos()
+	decl.End()
+	s := ShortSymbol{
 		Kind:   "function",
 		Name:   decl.Name.Name,
 		Detail: types.ExprString(decl.Type),
-		Doc:    "todo",
 	}
 	if decl.Recv != nil {
 		s.Kind = "method"
@@ -46,11 +54,10 @@ func funcSymbol(decl *ast.FuncDecl) Symbol {
 	return s
 }
 
-func typeSymbol(tf *token.File, spec *ast.TypeSpec) Symbol {
-	s := Symbol{
+func typeSymbol(tf *token.File, spec *ast.TypeSpec) ShortSymbol {
+	s := ShortSymbol{
 		Kind: "type",
 		Name: spec.Name.Name,
-		Doc:  "todo",
 	}
 
 	s.Kind, s.Detail, s.Children = typeDetails(tf, spec.Type)
@@ -176,11 +183,10 @@ func embeddedIdent(x ast.Expr) *ast.Ident {
 	return nil
 }
 
-func varSymbol(tf *token.File, spec *ast.ValueSpec, name *ast.Ident, isConst bool) Symbol {
-	s := Symbol{
+func varSymbol(tf *token.File, spec *ast.ValueSpec, name *ast.Ident, isConst bool) ShortSymbol {
+	s := ShortSymbol{
 		Name:   name.Name,
 		Kind:   Variable,
-		Doc:    "todo",
 		Detail: types.ExprString(spec.Type),
 	}
 	if isConst {
@@ -190,4 +196,22 @@ func varSymbol(tf *token.File, spec *ast.ValueSpec, name *ast.Ident, isConst boo
 		_, s.Detail, s.Children = typeDetails(tf, spec.Type)
 	}
 	return s
+}
+
+// Position returns the Position for the pos value in the given file.
+//
+// p must be NoPos, a valid Pos in the range of f, or exactly 1 byte
+// beyond the end of f. (See [Offset] for explanation.)
+// Any other value causes a panic.
+//
+// Line directives (//line comments) are ignored.
+//
+// copy from gopls/internal/util/safetoken/safetoken.go
+func Position(f *token.File, pos token.Pos) token.Position {
+	// Work around issue #57490.
+	if int(pos) == f.Base()+f.Size()+1 {
+		pos--
+	}
+
+	return f.PositionFor(pos, false)
 }

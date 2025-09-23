@@ -49,8 +49,15 @@ func getPackageInfo(pkg *packages.Package, ignoreSymbols bool) Package {
 					continue
 				}
 
-				sym := funcSymbol(decl)
-				sym.Doc = decl.Doc.Text()
+				shortSym := funcSymbol(decl)
+				start, end := Position(tok, decl.Pos()), Position(tok, decl.End())
+				sym := Symbol{
+					ShortSymbol: shortSym,
+					Doc:         decl.Doc.Text(),
+					Start:       Pos(start),
+					End:         Pos(end),
+					FilePath:    file.Name.Name,
+				}
 				symbols = append(symbols, sym)
 			case *ast.GenDecl:
 				for _, spec := range decl.Specs {
@@ -59,17 +66,31 @@ func getPackageInfo(pkg *packages.Package, ignoreSymbols bool) Package {
 						if spec.Name.Name == "_" || !ast.IsExported(spec.Name.Name) {
 							continue
 						}
-						sym := typeSymbol(tok, spec)
-						sym.Doc = decl.Doc.Text()
+						shortSym := typeSymbol(tok, spec)
+						start, end := Position(tok, decl.Pos()), Position(tok, decl.End())
+						sym := Symbol{
+							ShortSymbol: shortSym,
+							Doc:         decl.Doc.Text(),
+							Start:       Pos(start),
+							End:         Pos(end),
+							FilePath:    file.Name.Name,
+						}
 						symbols = append(symbols, sym)
 					case *ast.ValueSpec:
 						for _, name := range spec.Names {
 							if name.Name == "_" || !ast.IsExported(name.Name) {
 								continue
 							}
-							vs := varSymbol(tok, spec, name, decl.Tok == token.CONST)
-							vs.Doc = decl.Doc.Text()
-							symbols = append(symbols, vs)
+							shortSym := varSymbol(tok, spec, name, decl.Tok == token.CONST)
+							start, end := Position(tok, decl.Pos()), Position(tok, decl.End())
+							sym := Symbol{
+								ShortSymbol: shortSym,
+								Doc:         decl.Doc.Text(),
+								Start:       Pos(start),
+								End:         Pos(end),
+								FilePath:    file.Name.Name,
+							}
+							symbols = append(symbols, sym)
 						}
 					}
 				}
