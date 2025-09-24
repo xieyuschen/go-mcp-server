@@ -1,0 +1,48 @@
+name: Release VS Code Extension
+on:
+  push:
+    tags:
+      # respect vscext releases only.
+      - 'vscext@v*.*.*'
+
+jobs:
+  publish-vscode-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          configuration_file_path: ".github/release.vscext.yml"
+          prerelease: ${{ startsWith(github.ref_name, 'vscext@v0') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x' # Use a long-term support (LTS) version of Node.js
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./vscext
+
+      - name: Build extension
+        run: npm run build
+        working-directory: ./vscext
+
+      - name: Publish to VS Code Marketplace (Pre-release)
+        if: "startsWith(github.ref_name, 'vscext@v0')"
+        run: npx vsce publish --pre-release --yarn
+        working-directory: ./vscext
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to VS Code Marketplace (Stable)
+        if: "!startsWith(github.ref_name, 'vscext@v0')"
+        run: npx vsce publish --yarn
+        working-directory: ./vscext
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

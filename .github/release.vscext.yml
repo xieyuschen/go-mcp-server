@@ -1,0 +1,10 @@
+
+changelog:
+  categories:
+    - title: '🚀 Vscode Extension Updates'
+      commits:
+        - 'vscext'
+
+    - title: '🌍 General & Global Changes'
+      commits:
+        - 'all'
