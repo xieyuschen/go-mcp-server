@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Setup Release Notes Configuration
+        run: cp .github/release.go.yml .github/release.yml
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -21,7 +23,6 @@ jobs:
           # This flag tells the action to automatically generate the release notes
           # from the commits between this tag and the previous one.
           generate_release_notes: true
-          configuration_file_path: ".github/release.go.yml"
         env:
           # The GITHUB_TOKEN is required to create the release.
           # It's automatically provided by GitHub Actions.

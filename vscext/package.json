@@ -2,7 +2,7 @@
   "name": "go-mcp-server",
   "displayName": "GO MCP Server",
   "description": "Model Context Protocol (MCP) implementation for llm to better understand go language written projects.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "go-mcp-server",
   "repository": {
     "type": "git",
@@ -17,7 +17,7 @@
     "Other"
   ],
   "activationEvents": [],
-  "main": "./out/extension.js",
+  "main": "./dist/extension",
   "contributes": {
     "commands": [
       {
@@ -49,9 +49,10 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "webpack --mode development",
+    "watch": "webpack --mode development --watch",
+    "vscode:prepublish": "npm run package",
+    "package": "webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
@@ -67,8 +68,15 @@
     "@typescript-eslint/parser": "^8.42.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "browserify": "^17.0.1",
     "eslint": "^9.34.0",
-    "typescript": "^5.9.2"
+    "os-browserify": "^0.3.0",
+    "process": "^0.11.10",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.2",
+    "util": "^0.12.5",
+    "webpack": "^5.101.3",
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "axios": "^1.12.2",
