@@ -1,0 +1,28 @@
+name: Release Go-MCP-Server Applications
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '!vscext@*' # Important: Do not run on vscext tags
+
+jobs:
+  create-github-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # This flag tells the action to automatically generate the release notes
+          # from the commits between this tag and the previous one.
+          generate_release_notes: true
+          configuration_file_path: ".github/release.go.yml"
+        env:
+          # The GITHUB_TOKEN is required to create the release.
+          # It's automatically provided by GitHub Actions.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

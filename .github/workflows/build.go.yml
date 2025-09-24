@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - 'vscext/**'
+      - '.github/workflows/vscext-check.yml'      
   pull_request:
     branches:
       - master
+    paths-ignore:
+      - 'vscext/**'
+      - '.github/workflows/vscext-check.yml'
 
 jobs:
   check:

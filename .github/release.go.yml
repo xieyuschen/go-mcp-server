@@ -1,0 +1,19 @@
+# Release note configuration for the Go application.
+# It only includes commits with the 'mcpgo' and 'all' prefixes.
+
+changelog:
+  categories:
+    - title: '🚀 Go Application Updates'
+      # This section will include all commits prefixed with 'mcpgo:'.
+      # Example: mcpgo: add new user authentication endpoint
+      commits:
+        - 'mcpgo'
+
+    - title: '🌍 General & Global Changes'
+      # This section will include all commits prefixed with 'all:'.
+      # Example: all: update project contribution guidelines
+      commits:
+        - 'all'
+
+    # Note: Breaking changes (e.g., 'mcpgo!:' or 'all!:') will be automatically
+    # placed in a separate "💥 Breaking Changes" category at the top.
