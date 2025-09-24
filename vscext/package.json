@@ -2,7 +2,7 @@
   "name": "go-mcp-server",
   "displayName": "GO MCP Server",
   "description": "[WIP] A go mcp server aims for a better go language development experience through AI.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "go-mcp-server",
   "repository": {
     "type": "git",
@@ -57,14 +57,22 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.104.0",
+    "@types/axios": "^0.9.36",
+    "@types/get-port": "^4.0.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
+    "@types/semver": "^7.7.1",
+    "@types/vscode": "^1.104.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
-    "eslint": "^9.34.0",
-    "typescript": "^5.9.2",
     "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.34.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "get-port": "^7.1.0",
+    "semver": "^7.7.2"
   }
 }
