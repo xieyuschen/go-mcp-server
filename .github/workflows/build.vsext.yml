@@ -1,0 +1,39 @@
+name: VS Code Extension CI
+
+on:
+  push:
+    branches:
+      - master      
+    paths:
+      - 'vscext/**'
+      - '.github/workflows/vscext-check.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'vscext/**'
+      - '.github/workflows/vscext-check.yml'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm' 
+          cache-dependency-path: 'vscext/package-lock.json'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./vscext
+
+      - name: Build extension
+        run: npm run compile
+        working-directory: ./vscext

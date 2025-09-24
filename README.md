@@ -12,6 +12,8 @@ go install github.com/xieyuschen/go-mcp-server/mcpgo@latest
 
 Try the pre-release version in [vscode extension](https://marketplace.visualstudio.com/items?itemName=go-mcp-server.go-mcp-server).
 
+In vscode extension, it will auto start the server at 8555 port for the first time, or a random available port if 8555 is occupied. Now the extension will start a separate server process for each vscode workspace.
+
 ## Feature
 
 - [x] go_info: reports the Go environment, including GOROOT, GOBIN, and Go version.
