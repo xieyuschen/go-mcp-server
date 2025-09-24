@@ -99,11 +99,11 @@ type GetPort = (options?: { port?: number | number[] }) => Promise<number>;
 /**
  * Starts the server process.
  */
-async function startServer() {
+async function startServer(): Promise<number | null> {
   if (serverProcess && !serverProcess.killed) {
     vscode.window.showInformationMessage("Server is already running.");
     outputChannel.show();
-    return;
+    return port;
   }
 
   // Before starting, check if the tool is installed.
@@ -112,7 +112,7 @@ async function startServer() {
     const installed = await promptAndInstallTool();
     if (!installed) {
       // If the user cancels or installation fails, do not start the server.
-      return;
+      return port;
     }
   }
 
@@ -123,7 +123,7 @@ async function startServer() {
 
   outputChannel.show();
   outputChannel.appendLine("[Server] Starting Go MCP server...");
-  outputChannel.appendLine(`[Server] Using port: ${port}`);
+  outputChannel.appendLine(`[Server] MCP serves Streamable HTTP at: http://localhost:${port}`);
 
   // --- Pass the port as a command-line argument ---
   // We assume the Go app accepts a '--port' flag. Change this if your app uses a different flag.
@@ -153,6 +153,7 @@ async function startServer() {
       "Failed to start server. Check the output panel.",
     );
   });
+  return port;
 }
 
 /**
@@ -221,22 +222,28 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel,
   );
 
-  const configuration = vscode.workspace.getConfiguration("go-mcp-server");
-  const startOnActivation = configuration.get<boolean>(
-    "startServerOnActivation",
-  );
-
-  if (startOnActivation) {
     outputChannel.appendLine(
       '[Lifecycle] Configuration "startServerOnActivation" is enabled. Attempting to start server automatically...',
     );
     // Calling startServer() will handle the tool check, installation prompt, and process spawning.
-    await startServer();
-  } else {
-    outputChannel.appendLine(
-      '[Lifecycle] Configuration "startServerOnActivation" is disabled. Server will not be started automatically.',
-    );
-  }
+    const port = await startServer();
+    if (port) {
+      const didChangeEmitter = new vscode.EventEmitter<void>();
+      context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('GO MCP Server', {
+        onDidChangeMcpServerDefinitions: didChangeEmitter.event,
+        provideMcpServerDefinitions: async () => {
+          let servers: vscode.McpServerDefinition[] = [];
+          servers.push(new vscode.McpHttpServerDefinition(
+            'GO MCP Server',
+            vscode.Uri.parse(`http://localhost:${port || 8555}`)
+            ));
+            return servers;
+        },
+          resolveMcpServerDefinition: async (server: vscode.McpServerDefinition) => {
+            return server;
+        }
+    }));
+    }
 
   checkForUpdates();
 }
@@ -310,6 +317,9 @@ async function getLatestToolVersion(): Promise<string | null> {
     const tags = tagsResponse.data;
 
     for (const tag of tags) {
+      if (tag.name.startsWith("vscext")){
+        continue
+      }
       if (tag.commit.sha === latestCommitSha) {
         // Found a tag that points directly to the latest commit. This is our version.
         const version = semver.clean(tag.name); // Clean up prefixes like 'v'
@@ -386,12 +396,14 @@ async function checkForUpdates() {
     return;
   }
 
-  if (remoteVersion !== localVersion) {
+  const shortRemoteVer = remoteVersion.slice(0,7)
+  const shortLocalVer = localVersion.slice(0,7);
+  if (shortRemoteVer !== shortLocalVer) {
     outputChannel.appendLine(
-      `[UpdateCheck] A new version (${remoteVersion}) is available.`,
+      `[UpdateCheck] A new version (${shortRemoteVer}) is available.`,
     );
     const selection = await vscode.window.showInformationMessage(
-      `A new version (${remoteVersion}) of ${GO_TOOL_NAME} is available.`,
+      `A new version (${shortRemoteVer}) of ${GO_TOOL_NAME} is available.`,
       "Update Now",
     );
 
