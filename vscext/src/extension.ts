@@ -229,12 +229,12 @@ export async function activate(context: vscode.ExtensionContext) {
     const port = await startServer();
     if (port) {
       const didChangeEmitter = new vscode.EventEmitter<void>();
-      context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('GO MCP Server', {
+      context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('go-mcp-server', {
         onDidChangeMcpServerDefinitions: didChangeEmitter.event,
         provideMcpServerDefinitions: async () => {
           let servers: vscode.McpServerDefinition[] = [];
           servers.push(new vscode.McpHttpServerDefinition(
-            'GO MCP Server',
+            'go-mcp-server',
             vscode.Uri.parse(`http://localhost:${port || 8555}`)
             ));
             return servers;
