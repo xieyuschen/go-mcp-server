@@ -1,6 +1,6 @@
 # go-mcp-server
 
-A go mcp server aims for a better go language development experience through AI.
+Model Context Protocol (MCP) implementation for llm to better understand go language written projects.
 
 ## Usage
 
