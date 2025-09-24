@@ -28,7 +28,7 @@ const (
 
 type ShortSymbol struct {
 	Name     string           `json:"name" jsonschema:"the name of the symbol"`
-	Detail   string           `json:"detail" jsonschema:"the detail of the symbol, e.g., the signature of a function"`
+	Detail   string           `json:"detail,omitempty" jsonschema:"the detail of the symbol, e.g., the signature of a function"`
 	Kind     filedKind        `json:"kind" jsonschema:"the kind of the symbol, e.g., function, type, variable, constant"`
 	Children []DocumentSymbol `json:"children,omitempty" jsonschema:"the child symbols of the symbol"`
 }
@@ -185,9 +185,8 @@ func embeddedIdent(x ast.Expr) *ast.Ident {
 
 func varSymbol(tf *token.File, spec *ast.ValueSpec, name *ast.Ident, isConst bool) ShortSymbol {
 	s := ShortSymbol{
-		Name:   name.Name,
-		Kind:   Variable,
-		Detail: types.ExprString(spec.Type),
+		Name: name.Name,
+		Kind: Variable,
 	}
 	if isConst {
 		s.Kind = Constant
