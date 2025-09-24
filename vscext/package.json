@@ -16,7 +16,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./dist/extension",
   "contributes": {
     "mcpServerDefinitionProviders": [
