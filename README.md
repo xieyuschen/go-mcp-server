@@ -4,7 +4,8 @@ Model Context Protocol (MCP) implementation for llm to better understand go lang
 
 ## Usage
 
-**go1.25** is required now, later it may allow more go versions. It listens at port `8555` by default.
+**go1.25** is required now, later it may allow more go versions. It serves in stdio by default but you can pass flag to specify
+an streamable http server with an address.
 
 ```
 go install github.com/xieyuschen/go-mcp-server/mcpgo@latest
@@ -12,7 +13,8 @@ go install github.com/xieyuschen/go-mcp-server/mcpgo@latest
 
 Try the pre-release version in [vscode extension](https://marketplace.visualstudio.com/items?itemName=go-mcp-server.go-mcp-server).
 
-In vscode extension, it will auto start the server at 8555 port for the first time, or a random available port if 8555 is occupied. Now the extension will start a separate server process for each vscode workspace.
+In vscode extension, it starts a stdio mcp server to communicate with vscode and automatically register itself to vscode
+so you don't need any additional mcp setting.
 
 ## MCP Server Tools
 
