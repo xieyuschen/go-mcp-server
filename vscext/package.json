@@ -19,6 +19,12 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "GO MCP Server",
+        "label": "Go MCP Server"
+      }
+    ],
     "commands": [
       {
         "command": "go-mcp-server.start",
