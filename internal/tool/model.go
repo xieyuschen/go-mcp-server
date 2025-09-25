@@ -12,6 +12,17 @@ type IGoProjectPackage struct {
 	PackagePath string `json:"package_path" jsonschema:"imported package path in current project"`
 }
 
+type ICheck struct {
+	Cwd         string `json:"cwd" jsonschema:"the current working directory to find the go.mod file"`
+	Path string `json:"path" jsonschema:"the import path of the package to check"`
+	Symbol string `json:"symbol" jsonschema:"the symbol to check, if not set, only check the package existence"`
+}
+type IPackageInfo struct {
+	PackagePath string `json:"package_path" jsonschema:"the import path of the package"`
+	Cwd         string `json:"cwd" jsonschema:"the current working directory to find the go.mod file"`
+}
+
+
 // ===== Output ====
 type OGoInfo struct {
 	Version string `json:"version" jsonschema:"the Go version"`
@@ -35,7 +46,12 @@ type OGoPackage struct {
 	Package Package `json:"package" jsonschema:"all exported symbols of a given package based on current project go.mod."`
 }
 
-// ===== Output Structures ====
+type OCheck struct {
+	Validated  bool   `json:"validated" jsonschema:"whether the check is successful"`
+	Explanation string `json:"explanation,omitempty" jsonschema:"if not validated, the explanation of the failure"`
+}
+
+// ===== Other Structures ====
 
 type Module struct {
 	Path    string `json:"path" jsonschema:"the module path"`

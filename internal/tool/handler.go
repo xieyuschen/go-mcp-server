@@ -3,18 +3,13 @@ package tool
 //go:generate go run generate.go
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"golang.org/x/tools/go/packages"
 )
 
 type GenericTool[In, Out any] struct {
@@ -34,37 +29,47 @@ func (t GenericTool[In, Out]) Details() (name, description string) {
 
 var tools = []any{
 	GenericTool[IEmpty, *OGoInfo]{
-		Name:        "go_info",
-		Description: "reports the Go environment, including GOROOT, GOBIN, and Go version.",
-		Handler:     goEnv,
+		Name:        "get_go_env",
+		Description: "get go environment, including GOROOT, GOBIN, and Go version.",
+		Handler:     getGoEnv,
 	},
 	// this mcp tool aims to provide all information for a go package under current project,
 	// so it will affect by current project module setting up.
 	// don't be confued with project_defined_packages. which report all packages in current project only(no 3rd packages).
 	GenericTool[IGoProjectPackage, *OGoPackage]{
-		Name:        "go_package_symbols",
-		Description: "report all exported symbols of a given content for current project",
-		Handler:     goProjectPackages,
+		Name:        "list_package_details",
+		Description: "list a package details and all exported symbols of a given package used in current project",
+		Handler:     listPackageDetails,
 	},
 	GenericTool[IEmpty, *OStdlibSymbols]{
-		Name:        "go_std_packages_symbols",
+		Name:        "list_stdlib_packages_symbols",
 		Description: "reports all std packages of the global go with all exported symbol details.",
-		Handler:     stdlibs,
+		Handler:     listStdlibSymbols,
 	},
 	GenericTool[IEmpty, *OStdlibSymbols]{
-		Name:        "go_std_packages",
-		Description: "report all available std packages with their docs, if see all symbols inside it, use go_std_packages_symbols",
-		Handler:     stdlibList,
+		Name:        "list_stdlib_packages",
+		Description: "report all available std packages with their docs, if see all symbols inside it, use list_stdlib_packages_symbols",
+		Handler:     listStdlibPackages,
 	},
 	GenericTool[IUsedModules, *OProjectUsedModules]{
-		Name:        "project_used_modules",
-		Description: "reports all modules used in the current project with their versions, it respects all possible go mod directives like replace.",
-		Handler:     usedModules,
+		Name:        "fetch_project_build_required_modules",
+		Description: "reports all modules used by the build in the current project with their versions, it respects all possible go mod directives like replace.",
+		Handler:     listProjectUsedModules,
 	},
 	GenericTool[IUsedModules, *OProjectDefinedPackages]{
-		Name:        "project_defined_packages",
-		Description: "reports all pacakges defined by current project with their docs",
-		Handler:     projectPackages,
+		Name:        "list_project_defined_packages",
+		Description: "reports all packages defined by current project with their docs",
+		Handler:     listProjectDefinedPackages,
+	},
+	GenericTool[IPackageInfo, *OCheck]{
+		Name:        "check_package_exists",
+		Description: "check if a package exists in current project module",
+		Handler:     checkPackageExists,
+	},
+	GenericTool[ICheck, *OCheck]{
+		Name:        "check_package_symbol_exists",
+		Description: "check if a symbol exists in a given package in current project module",
+		Handler:     checkSymbolExists,
 	},
 }
 
@@ -72,14 +77,14 @@ func UpdateReadme(content string) string {
 	topics := strings.Split(content, "##")
 
 	var builder strings.Builder
-	builder.WriteString(" Feature\n\n")
+	builder.WriteString(" MCP Server Tools\n\n")
 	for _, tool := range tools {
 		type r interface {
 			Details() (string, string)
 		}
 		if d, ok := tool.(r); ok {
 			name, des := d.Details()
-			builder.Write(fmt.Appendf(nil, "- [x] %s: %s\n", name, des))
+			builder.Write(fmt.Appendf(nil, "- `%s`: %s\n", name, des))
 		}
 	}
 	builder.WriteString("\n")
@@ -101,7 +106,7 @@ func RegisterTools(server *mcp.Server) {
 
 var reg = regexp.MustCompile("^go version (go[0-9.]+)")
 
-func goEnv(_ context.Context, _ *mcp.CallToolRequest, input IEmpty) (*mcp.CallToolResult, *OGoInfo, error) {
+func getGoEnv(_ context.Context, _ *mcp.CallToolRequest, input IEmpty) (*mcp.CallToolResult, *OGoInfo, error) {
 	out, err := gobin()
 	if err != nil {
 		return nil, nil, err
@@ -128,123 +133,116 @@ func goEnv(_ context.Context, _ *mcp.CallToolRequest, input IEmpty) (*mcp.CallTo
 	}, nil
 }
 
-func stdlibs(_ context.Context, _ *mcp.CallToolRequest, input IEmpty) (*mcp.CallToolResult, *OStdlibSymbols, error) {
-	cfg := packages.Config{
-		Mode: packages.LoadAllSyntax,
-	}
-	pkgs, err := packages.Load(&cfg, "std")
+func listStdlibSymbols(_ context.Context, _ *mcp.CallToolRequest, input IEmpty) (*mcp.CallToolResult, *OStdlibSymbols, error) {
+	stdLibMap, err := stdlib{}.listPackages(false)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load Go standard library packages: %w", err)
+		return nil, nil, err
 	}
-	stdLibMap := make(map[string]Package, len(pkgs))
-	for _, pkg := range pkgs {
-		if strings.HasPrefix(pkg.PkgPath, "internal/") {
-			continue
-		}
-		stdLibMap[pkg.PkgPath] = getPackageInfo(pkg, false)
-	}
-
 	return nil, &OStdlibSymbols{StdLibs: stdLibMap}, nil
 }
 
-func stdlibList(_ context.Context, _ *mcp.CallToolRequest, input IEmpty) (*mcp.CallToolResult, *OStdlibSymbols, error) {
-	cfg := packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles,
-	}
-	pkgs, err := packages.Load(&cfg, "std")
+func listStdlibPackages(_ context.Context, _ *mcp.CallToolRequest, input IEmpty) (*mcp.CallToolResult, *OStdlibSymbols, error) {
+	stdLibMap, err := stdlib{}.listPackages(true)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load Go standard library packages: %w", err)
+		return nil, nil, err
 	}
-	stdLibMap := make(map[string]Package, len(pkgs))
-	for _, pkg := range pkgs {
-		if strings.HasPrefix(pkg.PkgPath, "internal/") {
-			continue
-		}
-
-		stdLibMap[pkg.PkgPath] = getPackageInfo(pkg, true)
-	}
-
 	return nil, &OStdlibSymbols{StdLibs: stdLibMap}, nil
 }
 
-func usedModules(_ context.Context, _ *mcp.CallToolRequest, input IUsedModules) (*mcp.CallToolResult, *OProjectUsedModules, error) {
-	cwd := filepath.Clean(strings.TrimSpace(input.Cwd))
-	if cwd == "" {
-		return nil, nil, fmt.Errorf("input 'Cwd' (current working directory) cannot be empty")
-	}
 
-	cmd := exec.Command("go", "mod", "download", "-json")
-	cmd.Dir = cwd
-	output, err := cmd.CombinedOutput()
+func listProjectUsedModules(_ context.Context, _ *mcp.CallToolRequest, input IUsedModules) (*mcp.CallToolResult, *OProjectUsedModules, error) {
+	analyzer, err := New(input.Cwd)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to execute 'go list -m -json all': %w\nOutput:\n%s", err, string(output))
+		return nil, nil, err
 	}
-
-	modules := make([]Module, 0)
-	decoder := json.NewDecoder(bytes.NewReader(output))
-	for decoder.More() {
-		var goListMod GoListModule
-		if err := decoder.Decode(&goListMod); err != nil {
-			return nil, nil, fmt.Errorf("failed to parse JSON output from 'go list': %w", err)
-		}
-		if goListMod.Error != nil {
-			continue
-		}
-		modules = append(modules, Module{
-			Path:      goListMod.Path,
-			Version:   goListMod.Version,
-			Main:      goListMod.Main,
-			Indirect:  goListMod.Indirect,
-			Dir:       goListMod.Dir,
-			GoMod:     goListMod.GoMod,
-			GoVersion: goListMod.GoVersion,
-		})
+	modules, err := analyzer.usedModules()
+	if err != nil {
+		return nil, nil, err
 	}
 	return nil, &OProjectUsedModules{Modules: modules}, nil
 }
 
-func projectPackages(_ context.Context, _ *mcp.CallToolRequest, input IUsedModules) (*mcp.CallToolResult, *OProjectDefinedPackages, error) {
-	cwd := filepath.Clean(strings.TrimSpace(input.Cwd))
-	if cwd == "" {
-		return nil, nil, fmt.Errorf("input 'Cwd' (current working directory) cannot be empty")
-	}
-	cfg := packages.Config{
-		Mode: packages.NeedName | packages.NeedDeps | packages.NeedImports | packages.NeedModule,
-		Dir:  cwd,
-	}
-	pkgs, err := packages.Load(&cfg, "./...")
+func listProjectDefinedPackages(_ context.Context, _ *mcp.CallToolRequest, input IUsedModules) (*mcp.CallToolResult, *OProjectDefinedPackages, error) {
+	analyzer, err := New(input.Cwd)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load packages for project %s: %w", cwd, err)
+		return nil, nil, err
 	}
-
-	pkgMaps := make(map[string]Package, len(pkgs))
-	for _, pkg := range pkgs {
-		pkgMaps[pkg.PkgPath] = getPackageInfo(pkg, true)
+	packages, err := analyzer.projectDefinedPackages(true)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	return nil, &OProjectDefinedPackages{Packages: pkgMaps}, nil
+	return nil, &OProjectDefinedPackages{Packages: packages}, nil
 }
 
-func goProjectPackages(_ context.Context, _ *mcp.CallToolRequest, input IGoProjectPackage) (*mcp.CallToolResult, *OGoPackage, error) {
-	cwd := filepath.Clean(strings.TrimSpace(input.Cwd))
-	if cwd == "" {
-		return nil, nil, fmt.Errorf("input 'Cwd' (current working directory) cannot be empty")
-	}
-	pkgPath := strings.TrimSpace(input.PackagePath)
-	cfg := packages.Config{
-		Mode: packages.LoadAllSyntax | packages.NeedModule,
-		Dir:  cwd,
-	}
-	pkgs, err := packages.Load(&cfg, pkgPath)
+func listPackageDetails(_ context.Context, _ *mcp.CallToolRequest, input IGoProjectPackage) (*mcp.CallToolResult, *OGoPackage, error) {
+	analyzer, err := New(input.Cwd)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load packages for project %s: %w", cwd, err)
+		return nil, nil, err
+	}
+	info, err := analyzer.projectSinglePackage(input.PackagePath, false)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if len(pkgs) != 1 {
-		return nil, nil, fmt.Errorf("load %d packages for path %s", len(pkgs), pkgPath)
-	}
-	pkg := pkgs[0]
-	info := getPackageInfo(pkg, false)
+	return nil, &OGoPackage{Package: *info}, nil
+}
 
-	return nil, &OGoPackage{Package: info}, nil
+func checkPackageExists(_ context.Context, _ *mcp.CallToolRequest, input IPackageInfo) (*mcp.CallToolResult, *OCheck, error) {
+	analyser, err := New(input.Cwd)
+	if err != nil {
+		return nil, nil, err
+	}
+	pkg, err := analyser.projectSinglePackage(input.PackagePath, false)
+	if err != nil || pkg == nil {
+		o := &OCheck{
+			Validated:  false,
+			Explanation: fmt.Sprintf(`failed to find the existence of package '%s': %s.
+It may be caused by the package doensn't exist in current module, 
+or you want to load a package from another module but haven't added in go.mod file yet.`, input.PackagePath, err.Error()),
+		}
+		return nil, o, nil
+	}
+
+	o := &OCheck{
+		Validated:  true,
+		Explanation: fmt.Sprintf("package '%s' exists", input.PackagePath),
+	}
+	return nil, o, nil
+}
+
+func checkSymbolExists(_ context.Context, _ *mcp.CallToolRequest, input ICheck) (*mcp.CallToolResult, *OCheck, error) {
+	analyser, err := New(input.Cwd)
+	if err != nil {
+		return nil, nil, err
+	}
+	pkg, err := analyser.projectSinglePackage(input.Path, true)
+	if err != nil || pkg == nil {
+		o := &OCheck{
+			Validated:  false,
+			Explanation: fmt.Sprintf(`failed to find the existence of package '%s': %s.
+It may be caused by the package doensn't exist in current module, 
+or you want to load a package from another module but haven't added in go.mod file yet.`, input.Path, err.Error()),
+		}
+		return nil, o, nil
+	}
+
+	var found bool
+	for _, sym := range pkg.Symbols {
+		if sym.Name == input.Symbol {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		o := &OCheck{
+			Validated:  false,
+			Explanation: fmt.Sprintf("failed to find symbol '%s' in package '%s'", input.Symbol, input.Path),
+		}
+		return nil, o, nil
+	}
+	o := &OCheck{
+		Validated:  true,
+	}
+	return nil, o, nil
 }
