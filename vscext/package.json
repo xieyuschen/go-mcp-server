@@ -2,7 +2,7 @@
   "name": "go-mcp-server",
   "displayName": "GO MCP Server",
   "description": "Model Context Protocol (MCP) implementation for llm to better understand go language written projects.",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "publisher": "go-mcp-server",
   "repository": {
     "type": "git",
@@ -17,7 +17,11 @@
     "Other"
   ],
   "main": "./dist/extension",
-  "activationEvents": [],
+  "activationEvents": [
+    "workspaceContains:**/*.go",
+    "workspaceContains:**/go.mod",
+    "workspaceContains:**/go.work"
+  ],
   "contributes": {
     "mcpServerDefinitionProviders": [
       {
@@ -45,11 +49,17 @@
     "configuration": {
       "title": "Go MCP Server",
       "properties": {
-        "go-mcp-server.port": {
-          "type": "integer",
-          "default": 8555,
-          "description": "Specifies the port number for the Go MCP server to listen on.",
+        "go-mcp-server.enable_streamable_http": {
+          "type": "boolean",
+          "default": false,
+          "description": "Specify whether the mcp server should serve streamable http. When it's enabled, it listens at localhost and tries to use 8555 or a random port. If disabled, use stdio instead.",
           "scope": "resource"
+        },
+        "go-mcp-server.verbose": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the mcp server is verbose to log.",
+          "scope": "window"
         }
       }
     }
@@ -86,7 +96,7 @@
   },
   "dependencies": {
     "axios": "^1.12.2",
-    "get-port": "^7.1.0",
+    "get-port": "^5.1.1",
     "semver": "^7.7.2"
   }
 }

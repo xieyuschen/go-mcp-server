@@ -13,13 +13,10 @@ const exec = promisify(child_process.exec);
 // Global Variables and Constants
 // ===================================
 
-// The full import path of the Go tool to be installed.
-// e.g., "github.com/your-username/your-repo/cmd/your-tool@latest"
 const GO_TOOL_PATH = "github.com/xieyuschen/go-mcp-server/mcpgo@latest";
 
 // Automatically extract the tool name from the path.
-const GO_TOOL_NAME =
-  GO_TOOL_PATH.split("/")[GO_TOOL_PATH.split("/").length - 1].split("@")[0];
+const GO_TOOL_NAME = GO_TOOL_PATH.split("/")[GO_TOOL_PATH.split("/").length - 1].split("@")[0];
 
 // Used to track the server's child process throughout the extension.
 let serverProcess: ChildProcess | null = null;
@@ -27,6 +24,11 @@ let port: number | null = null;
 
 // Create a dedicated output channel to display server logs and installation progress.
 const outputChannel = vscode.window.createOutputChannel("Go MCP Server");
+
+// This will hold the active server definition. It's null when the server is off.
+let currentServerDefinition: vscode.McpServerDefinition | null = null;
+// This emitter will notify VS Code whenever the server definition changes (starts, stops, restarts).
+const didChangeMcpServerDefinitionsEmitter = new vscode.EventEmitter<void>();
 
 // ===================================
 // Core Functional Functions
@@ -94,40 +96,25 @@ async function promptAndInstallTool(): Promise<boolean> {
   }
   return false;
 }
+const GO_MCP_SERVER_DEFAULT_PORT = 8555;
+const GO_MCP_SERVER_NAME = "go-mcp-server";
 
-type GetPort = (options?: { port?: number | number[] }) => Promise<number>;
-/**
- * Starts the server process.
- */
-async function startServer(): Promise<number | null> {
-  if (serverProcess && !serverProcess.killed) {
-    vscode.window.showInformationMessage("Server is already running.");
-    outputChannel.show();
-    return port;
-  }
+async function startStdioServer(verbose: boolean): Promise<vscode.McpServerDefinition> {
+  outputChannel.show();
+  outputChannel.appendLine("[Server] Starting Go MCP server in stdio mode...");
+  const serverArgs = [`--verbose=${verbose}`];
 
-  // Before starting, check if the tool is installed.
-  if (!(await isToolInstalled())) {
-    // If not installed, prompt the user to install it.
-    const installed = await promptAndInstallTool();
-    if (!installed) {
-      // If the user cancels or installation fails, do not start the server.
-      return port;
-    }
-  }
+  // Use spawn to start a long-running process.
+  serverProcess = spawn(GO_TOOL_NAME, serverArgs, { shell: true });
 
-  const configuration = vscode.workspace.getConfiguration("go-mcp-server");
-  const preferredPort = configuration.get<number>("port", 8555);
-  const getPort: GetPort = (await import("get-port")).default;
-  port = await getPort({ port: preferredPort });
+  return new vscode.McpStdioServerDefinition(GO_MCP_SERVER_NAME, "mcpgo", serverArgs );
+}
 
+async function startHTTPServer(port: number, verbose: boolean): Promise<vscode.McpServerDefinition> {
   outputChannel.show();
   outputChannel.appendLine("[Server] Starting Go MCP server...");
   outputChannel.appendLine(`[Server] MCP serves Streamable HTTP at: http://localhost:${port}`);
-
-  // --- Pass the port as a command-line argument ---
-  // We assume the Go app accepts a '--port' flag. Change this if your app uses a different flag.
-  const serverArgs = [`--port=${port}`];
+  const serverArgs = [`--port=${port}`, `--verbose=${verbose}`];
 
   // Use spawn to start a long-running process.
   serverProcess = spawn(GO_TOOL_NAME, serverArgs, { shell: true });
@@ -142,7 +129,11 @@ async function startServer(): Promise<number | null> {
 
   serverProcess.on("close", (code) => {
     outputChannel.appendLine(`[Server] Process exited with code ${code}.`);
-    serverProcess = null;
+    if (serverProcess) {
+        serverProcess = null;
+        currentServerDefinition = null;
+        didChangeMcpServerDefinitionsEmitter.fire();
+    }
   });
 
   serverProcess.on("error", (err) => {
@@ -153,7 +144,55 @@ async function startServer(): Promise<number | null> {
       "Failed to start server. Check the output panel.",
     );
   });
-  return port;
+
+  return new vscode.McpHttpServerDefinition(
+    GO_MCP_SERVER_NAME,
+    vscode.Uri.parse(`http://localhost:${port}`)
+  );
+}
+
+type GetPort = (options?: { port?: number | number[] }) => Promise<number>;
+
+/**
+ * Starts the server process.
+ */
+async function startServer(): Promise<void> { // MODIFIED: Return type is now void
+  if (serverProcess && !serverProcess.killed) {
+    vscode.window.showInformationMessage("Server is already running.");
+    outputChannel.show();
+    return;
+  }
+
+  // Before starting, check if the tool is installed.
+  if (!(await isToolInstalled())) {
+    // If not installed, prompt the user to install it.
+    const installed = await promptAndInstallTool();
+    if (!installed) {
+      // If the user cancels or installation fails, do not start the server.
+      return;
+    }
+  }
+
+  const configuration = vscode.workspace.getConfiguration("go-mcp-server");
+  const dynamic_port = configuration.get<boolean>("enable_streamable_http", false);
+  const verbose = configuration.get<boolean>("verbose", false);
+
+  // MODIFIED: The function now updates the global state instead of returning.
+  let definition: vscode.McpServerDefinition | null = null;
+  if (dynamic_port) {
+    const getPort: GetPort = (await import("get-port")).default;
+    port = await getPort({ port: GO_MCP_SERVER_DEFAULT_PORT });
+    definition = await startHTTPServer(port, verbose);
+  } else {
+    definition = await startStdioServer(verbose);
+  }
+
+  if (definition) {
+    currentServerDefinition = definition;
+    // Notify VS Code that a new server definition is available.
+    didChangeMcpServerDefinitionsEmitter.fire();
+    outputChannel.appendLine("[Lifecycle] ✔️ Server started and definition provided to VS Code.");
+  }
 }
 
 /**
@@ -165,6 +204,11 @@ function stopServer() {
     const killed = serverProcess.kill(); // Send a SIGTERM signal.
     if (killed) {
       vscode.window.showInformationMessage("Server stopped.");
+      // MODIFIED: Clear the state and notify VS Code the server is gone.
+      serverProcess = null;
+      currentServerDefinition = null;
+      didChangeMcpServerDefinitionsEmitter.fire();
+      outputChannel.appendLine("[Lifecycle] 🔌 Server stopped and definition removed from VS Code.");
     } else {
       vscode.window.showWarningMessage("Failed to stop the server.");
     }
@@ -173,15 +217,14 @@ function stopServer() {
   }
 }
 
-/**
- * Restarts the server process.
- */
 async function restartServer() {
   if (serverProcess && !serverProcess.killed) {
     outputChannel.appendLine("[Server] Restarting server...");
     // Add a listener to start the new process only after the old one has fully exited.
-    serverProcess.once("close", () => {
-      startServer();
+    serverProcess.once("close", async () => {
+      // The `stopServer` function (called by `restartServer`) and the `on('close')`
+      // handler will have already cleared the state. We can now safely start a new server.
+      await startServer();
     });
     stopServer();
   } else {
@@ -199,51 +242,32 @@ export async function activate(context: vscode.ExtensionContext) {
     '[Lifecycle] Activating extension "go-mcp-server"...',
   );
 
-  // Register all commands so they are always available.
-  const startCommand = vscode.commands.registerCommand(
-    "go-mcp-server.start",
-    startServer,
-  );
-  const stopCommand = vscode.commands.registerCommand(
-    "go-mcp-server.stop",
-    stopServer,
-  );
-  const restartCommand = vscode.commands.registerCommand(
-    "go-mcp-server.restart",
-    restartServer,
-  );
-
-  // Add the commands and the output channel to the context's subscriptions
-  // to be managed by VS Code's lifecycle.
   context.subscriptions.push(
-    startCommand,
-    stopCommand,
-    restartCommand,
+    vscode.commands.registerCommand("go-mcp-server.start", startServer),
+    vscode.commands.registerCommand("go-mcp-server.stop", stopServer),
+    vscode.commands.registerCommand("go-mcp-server.restart", restartServer),
     outputChannel,
   );
 
-    outputChannel.appendLine(
-      '[Lifecycle] Configuration "startServerOnActivation" is enabled. Attempting to start server automatically...',
-    );
-    // Calling startServer() will handle the tool check, installation prompt, and process spawning.
-    const port = await startServer();
-    if (port) {
-      const didChangeEmitter = new vscode.EventEmitter<void>();
-      context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('go-mcp-server', {
-        onDidChangeMcpServerDefinitions: didChangeEmitter.event,
-        provideMcpServerDefinitions: async () => {
-          let servers: vscode.McpServerDefinition[] = [];
-          servers.push(new vscode.McpHttpServerDefinition(
-            'go-mcp-server',
-            vscode.Uri.parse(`http://localhost:${port || 8555}`)
-            ));
-            return servers;
-        },
-          resolveMcpServerDefinition: async (server: vscode.McpServerDefinition) => {
-            return server;
-        }
-    }));
+  const provider: vscode.McpServerDefinitionProvider = {
+    onDidChangeMcpServerDefinitions: didChangeMcpServerDefinitionsEmitter.event,
+    provideMcpServerDefinitions: async () => {
+      // This function is called by VS Code when it needs the list of servers.
+      // It simply returns the current definition if it exists.
+      return currentServerDefinition ? [currentServerDefinition] : [];
+    },
+    resolveMcpServerDefinition: async (server: vscode.McpServerDefinition) => {
+      return server;
     }
+  };
+  
+  context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('go-mcp-server', provider));
+  outputChannel.appendLine("[Lifecycle] MCP provider registered.");  
+
+  outputChannel.appendLine(
+    '[Lifecycle] Attempting to start server automatically...',
+  );
+  await startServer();
 
   checkForUpdates();
 }
