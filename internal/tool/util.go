@@ -1,10 +1,13 @@
 package tool
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -122,4 +125,110 @@ type GoListModule struct {
 	Error     *struct {
 		Err string
 	}
+}
+
+
+type analzer struct {
+	cwd string
+}
+
+func New(cwd string) (*analzer, error) {
+	cwd = filepath.Clean(strings.TrimSpace(cwd))
+	if cwd == "" {
+		return nil, fmt.Errorf("input 'Cwd' (current working directory) cannot be empty")
+	}
+	return &analzer{cwd: cwd}, nil
+}
+
+func (a *analzer) usedModules() ([]Module, error) {
+	cmd := exec.Command("go", "mod", "download", "-json")
+	cmd.Dir = a.cwd
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute 'go list -m -json all': %w\nOutput:\n%s", err, string(output))
+	}
+
+	modules := make([]Module, 0)
+	decoder := json.NewDecoder(bytes.NewReader(output))
+	for decoder.More() {
+		var goListMod GoListModule
+		if err := decoder.Decode(&goListMod); err != nil {
+			return nil, fmt.Errorf("failed to parse JSON output from 'go list': %w", err)
+		}
+		if goListMod.Error != nil {
+			continue
+		}
+		modules = append(modules, Module{
+			Path:      goListMod.Path,
+			Version:   goListMod.Version,
+			Main:      goListMod.Main,
+			Indirect:  goListMod.Indirect,
+			Dir:       goListMod.Dir,
+			GoMod:     goListMod.GoMod,
+			GoVersion: goListMod.GoVersion,
+		})
+	}
+	return modules, nil
+}
+
+func (a *analzer) projectDefinedPackages(skipSymbols bool) (map[string]Package, error) {
+	cwd := filepath.Clean(strings.TrimSpace(a.cwd))
+	if cwd == "" {
+		return nil, fmt.Errorf("input 'Cwd' (current working directory) cannot be empty")
+	}
+	cfg := packages.Config{
+		Mode: packages.NeedName | packages.NeedDeps | packages.NeedImports | packages.NeedModule,
+		Dir:  cwd,
+	}
+	pkgs, err := packages.Load(&cfg, "./...")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load packages for project %s: %w", cwd, err)
+	}
+
+	pkgMaps := make(map[string]Package, len(pkgs))
+	for _, pkg := range pkgs {
+		pkgMaps[pkg.PkgPath] = getPackageInfo(pkg, skipSymbols)
+	}
+	return pkgMaps, nil
+}
+
+func (a *analzer) projectSinglePackage(pkgPath string, skipSymbols bool) (*Package, error) {
+	pkgPath = strings.TrimSpace(pkgPath)
+	cfg := packages.Config{
+		Mode: packages.LoadAllSyntax | packages.NeedModule,
+		Dir:  a.cwd,
+	}
+	pkgs, err := packages.Load(&cfg, pkgPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load packages for project %s: %w", a.cwd, err)
+	}
+
+	if len(pkgs) != 1 {
+		return nil, fmt.Errorf("load %d packages for path %s", len(pkgs), pkgPath)
+	}
+	pkg := pkgs[0]
+	info := getPackageInfo(pkg, false)
+
+	return &info, nil
+}
+
+type stdlib struct {}
+
+func (s stdlib) listPackages(skipSymbols bool) (map[string]Package, error) {
+	cfg := packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles,
+	}
+	pkgs, err := packages.Load(&cfg, "std")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load Go standard library packages: %w", err)
+	}
+	stdLibMap := make(map[string]Package, len(pkgs))
+	for _, pkg := range pkgs {
+		if strings.HasPrefix(pkg.PkgPath, "internal/") {
+			continue
+		}
+
+		stdLibMap[pkg.PkgPath] = getPackageInfo(pkg, skipSymbols)
+	}
+	return stdLibMap, nil
 }

@@ -14,14 +14,16 @@ Try the pre-release version in [vscode extension](https://marketplace.visualstud
 
 In vscode extension, it will auto start the server at 8555 port for the first time, or a random available port if 8555 is occupied. Now the extension will start a separate server process for each vscode workspace.
 
-## Feature
+## MCP Server Tools
 
-- [x] go_info: reports the Go environment, including GOROOT, GOBIN, and Go version.
-- [x] go_package_symbols: report all exported symbols of a given content for current project
-- [x] go_std_packages_symbols: reports all std packages of the global go with all exported symbol details.
-- [x] go_std_packages: report all available std packages with their docs, if see all symbols inside it, use go_std_packages_symbols
-- [x] project_used_modules: reports all modules used in the current project with their versions, it respects all possible go mod directives like replace.
-- [x] project_defined_packages: reports all pacakges defined by current project with their docs
+- `get_go_env`: get go environment, including GOROOT, GOBIN, and Go version.
+- `list_package_details`: list a package details and all exported symbols of a given package used in current project
+- `list_stdlib_packages_symbols`: reports all std packages of the global go with all exported symbol details.
+- `list_stdlib_packages`: report all available std packages with their docs, if see all symbols inside it, use list_stdlib_packages_symbols
+- `fetch_project_build_required_modules`: reports all modules used by the build in the current project with their versions, it respects all possible go mod directives like replace.
+- `list_project_defined_packages`: reports all packages defined by current project with their docs
+- `check_package_exists`: check if a package exists in current project module
+- `check_package_symbol_exists`: check if a symbol exists in a given package in current project module
 
 ## Motivation
 
