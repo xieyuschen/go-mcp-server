@@ -127,7 +127,6 @@ type GoListModule struct {
 	}
 }
 
-
 type analzer struct {
 	cwd string
 }
@@ -207,12 +206,20 @@ func (a *analzer) projectSinglePackage(pkgPath string, skipSymbols bool) (*Packa
 		return nil, fmt.Errorf("load %d packages for path %s", len(pkgs), pkgPath)
 	}
 	pkg := pkgs[0]
-	info := getPackageInfo(pkg, false)
+	if len(pkg.Errors) > 0 {
+		errMsgs := []string{}
+		for _, e := range pkg.Errors {
+			errMsgs = append(errMsgs, e.Error())
+		}
+		return nil, fmt.Errorf("failed to load package %s: %s", pkgPath, strings.Join(errMsgs, "; "))
+	}
+
+	info := getPackageInfo(pkg, skipSymbols)
 
 	return &info, nil
 }
 
-type stdlib struct {}
+type stdlib struct{}
 
 func (s stdlib) listPackages(skipSymbols bool) (map[string]Package, error) {
 	cfg := packages.Config{
