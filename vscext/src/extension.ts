@@ -14,10 +14,13 @@ const exec = promisify(child_process.exec);
 // ===================================
 
 const LATEST_GO_TOOL_PATH = "github.com/xieyuschen/go-mcp-server/mcpgo@latest";
-const GO_TOOL_PATH= "github.com/xieyuschen/go-mcp-server/mcpgo"
+const GO_TOOL_PATH = "github.com/xieyuschen/go-mcp-server/mcpgo";
 
 // Automatically extract the tool name from the path.
-const GO_TOOL_NAME = LATEST_GO_TOOL_PATH.split("/")[LATEST_GO_TOOL_PATH.split("/").length - 1].split("@")[0];
+const GO_TOOL_NAME =
+  LATEST_GO_TOOL_PATH.split("/")[
+    LATEST_GO_TOOL_PATH.split("/").length - 1
+  ].split("@")[0];
 
 // Used to track the server's child process throughout the extension.
 let serverProcess: ChildProcess | null = null;
@@ -59,38 +62,40 @@ async function promptAndInstallTool(): Promise<boolean> {
   const selection = await vscode.window.showWarningMessage(
     `The required tool "${GO_TOOL_NAME}" is not installed. Would you like to install it now via 'go install ${LATEST_GO_TOOL_PATH}'?`,
     "Install",
-    "Cancel",
+    "Cancel"
   );
 
   if (selection === "Install") {
     outputChannel.show(); // Show the output panel.
     outputChannel.appendLine(
-      `[Install] Installing ${GO_TOOL_NAME} via "go install ${LATEST_GO_TOOL_PATH}"...`,
+      `[Install] Installing ${GO_TOOL_NAME} via "go install ${LATEST_GO_TOOL_PATH}"...`
     );
 
     try {
       // Execute the 'go install' command.
-      const { stdout, stderr } = await exec(`go install ${LATEST_GO_TOOL_PATH}`);
+      const { stdout, stderr } = await exec(
+        `go install ${LATEST_GO_TOOL_PATH}`
+      );
       if (stderr) {
         outputChannel.appendLine(
-          `[Install] Encountered warnings/errors: ${stderr}`,
+          `[Install] Encountered warnings/errors: ${stderr}`
         );
       }
       outputChannel.appendLine(`[Install] stdout: ${stdout}`);
       outputChannel.appendLine(
-        `[Install] ✔️ Successfully installed ${GO_TOOL_NAME}.`,
+        `[Install] ✔️ Successfully installed ${GO_TOOL_NAME}.`
       );
       vscode.window.showInformationMessage(
-        `Successfully installed ${GO_TOOL_NAME}.`,
+        `Successfully installed ${GO_TOOL_NAME}.`
       );
       return true;
     } catch (error: any) {
       outputChannel.appendLine(
-        `[Install] ❌ Failed to install ${GO_TOOL_NAME}.`,
+        `[Install] ❌ Failed to install ${GO_TOOL_NAME}.`
       );
       outputChannel.appendLine(error.message);
       vscode.window.showErrorMessage(
-        `Failed to install ${GO_TOOL_NAME}. Check the "Go MCP Server" output for details.`,
+        `Failed to install ${GO_TOOL_NAME}. Check the "Go MCP Server" output for details.`
       );
       return false;
     }
@@ -100,7 +105,9 @@ async function promptAndInstallTool(): Promise<boolean> {
 const GO_MCP_SERVER_DEFAULT_PORT = 8555;
 const GO_MCP_SERVER_NAME = "go-mcp-server";
 
-async function startStdioServer(verbose: boolean): Promise<vscode.McpServerDefinition> {
+async function startStdioServer(
+  verbose: boolean
+): Promise<vscode.McpServerDefinition> {
   outputChannel.show();
   outputChannel.appendLine("[Server] Starting Go MCP server in stdio mode...");
   const serverArgs = [`--verbose=${verbose}`];
@@ -108,13 +115,22 @@ async function startStdioServer(verbose: boolean): Promise<vscode.McpServerDefin
   // Use spawn to start a long-running process.
   serverProcess = spawn(GO_TOOL_NAME, serverArgs, { shell: true });
 
-  return new vscode.McpStdioServerDefinition(GO_MCP_SERVER_NAME, "mcpgo", serverArgs );
+  return new vscode.McpStdioServerDefinition(
+    GO_MCP_SERVER_NAME,
+    "mcpgo",
+    serverArgs
+  );
 }
 
-async function startHTTPServer(port: number, verbose: boolean): Promise<vscode.McpServerDefinition> {
+async function startHTTPServer(
+  port: number,
+  verbose: boolean
+): Promise<vscode.McpServerDefinition> {
   outputChannel.show();
   outputChannel.appendLine("[Server] Starting Go MCP server...");
-  outputChannel.appendLine(`[Server] MCP serves Streamable HTTP at: http://localhost:${port}`);
+  outputChannel.appendLine(
+    `[Server] MCP serves Streamable HTTP at: http://localhost:${port}`
+  );
   const serverArgs = [`--port=${port}`, `--verbose=${verbose}`];
 
   // Use spawn to start a long-running process.
@@ -131,18 +147,18 @@ async function startHTTPServer(port: number, verbose: boolean): Promise<vscode.M
   serverProcess.on("close", (code) => {
     outputChannel.appendLine(`[Server] Process exited with code ${code}.`);
     if (serverProcess) {
-        serverProcess = null;
-        currentServerDefinition = null;
-        didChangeMcpServerDefinitionsEmitter.fire();
+      serverProcess = null;
+      currentServerDefinition = null;
+      didChangeMcpServerDefinitionsEmitter.fire();
     }
   });
 
   serverProcess.on("error", (err) => {
     outputChannel.appendLine(
-      `[Server] Failed to start server process: ${err.message}`,
+      `[Server] Failed to start server process: ${err.message}`
     );
     vscode.window.showErrorMessage(
-      "Failed to start server. Check the output panel.",
+      "Failed to start server. Check the output panel."
     );
   });
 
@@ -157,7 +173,8 @@ type GetPort = (options?: { port?: number | number[] }) => Promise<number>;
 /**
  * Starts the server process.
  */
-async function startServer(): Promise<void> { // MODIFIED: Return type is now void
+async function startServer(): Promise<void> {
+  // MODIFIED: Return type is now void
   if (serverProcess && !serverProcess.killed) {
     vscode.window.showInformationMessage("Server is already running.");
     outputChannel.show();
@@ -175,7 +192,10 @@ async function startServer(): Promise<void> { // MODIFIED: Return type is now vo
   }
 
   const configuration = vscode.workspace.getConfiguration("go-mcp-server");
-  const dynamic_port = configuration.get<boolean>("enable_streamable_http", false);
+  const dynamic_port = configuration.get<boolean>(
+    "enable_streamable_http",
+    false
+  );
   const verbose = configuration.get<boolean>("verbose", false);
 
   // MODIFIED: The function now updates the global state instead of returning.
@@ -192,7 +212,9 @@ async function startServer(): Promise<void> { // MODIFIED: Return type is now vo
     currentServerDefinition = definition;
     // Notify VS Code that a new server definition is available.
     didChangeMcpServerDefinitionsEmitter.fire();
-    outputChannel.appendLine("[Lifecycle] ✔️ Server started and definition provided to VS Code.");
+    outputChannel.appendLine(
+      "[Lifecycle] ✔️ Server started and definition provided to VS Code."
+    );
   }
 }
 
@@ -209,7 +231,9 @@ function stopServer() {
       serverProcess = null;
       currentServerDefinition = null;
       didChangeMcpServerDefinitionsEmitter.fire();
-      outputChannel.appendLine("[Lifecycle] 🔌 Server stopped and definition removed from VS Code.");
+      outputChannel.appendLine(
+        "[Lifecycle] 🔌 Server stopped and definition removed from VS Code."
+      );
     } else {
       vscode.window.showWarningMessage("Failed to stop the server.");
     }
@@ -240,14 +264,14 @@ async function restartServer() {
 
 export async function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine(
-    '[Lifecycle] Activating extension "go-mcp-server"...',
+    '[Lifecycle] Activating extension "go-mcp-server"...'
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("go-mcp-server.start", startServer),
     vscode.commands.registerCommand("go-mcp-server.stop", stopServer),
     vscode.commands.registerCommand("go-mcp-server.restart", restartServer),
-    outputChannel,
+    outputChannel
   );
 
   const provider: vscode.McpServerDefinitionProvider = {
@@ -259,14 +283,16 @@ export async function activate(context: vscode.ExtensionContext) {
     },
     resolveMcpServerDefinition: async (server: vscode.McpServerDefinition) => {
       return server;
-    }
+    },
   };
-  
-  context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('go-mcp-server', provider));
-  outputChannel.appendLine("[Lifecycle] MCP provider registered.");  
+
+  context.subscriptions.push(
+    vscode.lm.registerMcpServerDefinitionProvider("go-mcp-server", provider)
+  );
+  outputChannel.appendLine("[Lifecycle] MCP provider registered.");
 
   outputChannel.appendLine(
-    '[Lifecycle] Attempting to start server automatically...',
+    "[Lifecycle] Attempting to start server automatically..."
   );
   await startServer();
 
@@ -295,15 +321,14 @@ async function getLocalToolVersion(binaryPath: string): Promise<string | null> {
     const { stdout } = await exec(`go version -m -json "${binaryPath}"`);
     const data: GoMcpServerData = JSON.parse(stdout);
 
-    return data.Main.Version
+    return data.Main.Version;
   } catch (error) {
     outputChannel.appendLine(
-      `[UpdateCheck] Failed to get local version: ${error}`,
+      `[UpdateCheck] Failed to get local version: ${error}`
     );
     return null;
   }
 }
-
 
 async function getLatestToolVersion(): Promise<string | null> {
   interface GitHubTag {
@@ -318,7 +343,7 @@ async function getLatestToolVersion(): Promise<string | null> {
       timeout: 5000,
     });
     const versions = tagsResponse.data
-      .map(tag => {
+      .map((tag) => {
         // Skip tags that start with 'vscext'
         if (tag.name.startsWith("vscext")) {
           return null;
@@ -355,30 +380,30 @@ async function runUpdate(version: string) {
       try {
         outputChannel.show();
         outputChannel.appendLine(
-          `[Update] Running "go install ${GO_TOOL_PATH}@${version}"...`,
+          `[Update] Running "go install ${GO_TOOL_PATH}@${version}"...`
         );
         await exec(`go install ${GO_TOOL_PATH}@${version}`);
         outputChannel.appendLine(
-          `[Update] ✔️ Successfully updated ${GO_TOOL_NAME}.`,
+          `[Update] ✔️ Successfully updated ${GO_TOOL_NAME}.`
         );
         vscode.window.showInformationMessage(
-          `${GO_TOOL_NAME} has been updated. Please restart the server to use the new version.`,
+          `${GO_TOOL_NAME} has been updated. Please restart the server to use the new version.`
         );
       } catch (error: any) {
         outputChannel.appendLine(
-          `[Update] ❌ Failed to update: ${error.message}`,
+          `[Update] ❌ Failed to update: ${error.message}`
         );
         vscode.window.showErrorMessage(
-          `Failed to update ${GO_TOOL_NAME}. Check the output channel.`,
+          `Failed to update ${GO_TOOL_NAME}. Check the output channel.`
         );
       }
-    },
+    }
   );
 }
 
 async function checkForUpdates() {
   outputChannel.appendLine(
-    "[UpdateCheck] Starting background check for new version...",
+    "[UpdateCheck] Starting background check for new version..."
   );
   const binaryPath = await getBinaryPath();
   if (!binaryPath) {
@@ -400,19 +425,19 @@ async function checkForUpdates() {
   if (!cleanLocalVersion) {
     shouldUpdate = true;
     outputChannel.appendLine(
-      `[UpdateCheck] Local version "${localVersion}" is not a standard semantic version. Recommending update to ${remoteVersion}.`,
+      `[UpdateCheck] Local version "${localVersion}" is not a standard semantic version. Recommending update to ${remoteVersion}.`
     );
-  }  else if (semver.gt(remoteVersion, cleanLocalVersion)) {
+  } else if (semver.gt(remoteVersion, cleanLocalVersion)) {
     shouldUpdate = true;
     outputChannel.appendLine(
-      `[UpdateCheck] A stable version is available. Local: ${cleanLocalVersion}, Remote: ${remoteVersion}.`,
+      `[UpdateCheck] A stable version is available. Local: ${cleanLocalVersion}, Remote: ${remoteVersion}.`
     );
   }
 
   if (shouldUpdate) {
     const selection = await vscode.window.showInformationMessage(
       `A new stable version (${remoteVersion}) of ${GO_TOOL_NAME} is available.`,
-      "Update Now",
+      "Update Now"
     );
 
     if (selection === "Update Now") {
