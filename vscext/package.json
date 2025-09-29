@@ -2,7 +2,7 @@
   "name": "go-mcp-server",
   "displayName": "GO MCP Server",
   "description": "Model Context Protocol (MCP) implementation for llm to better understand go language written projects.",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "publisher": "go-mcp-server",
   "repository": {
     "type": "git",

@@ -14,7 +14,7 @@ import (
 
 const (
 	mcpName    = "go-mcp-server"
-	mcpVersion = "v0.0.1"
+	mcpVersion = "v0.0.2"
 )
 
 var (
