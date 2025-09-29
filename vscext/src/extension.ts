@@ -13,10 +13,11 @@ const exec = promisify(child_process.exec);
 // Global Variables and Constants
 // ===================================
 
-const GO_TOOL_PATH = "github.com/xieyuschen/go-mcp-server/mcpgo@latest";
+const LATEST_GO_TOOL_PATH = "github.com/xieyuschen/go-mcp-server/mcpgo@latest";
+const GO_TOOL_PATH= "github.com/xieyuschen/go-mcp-server/mcpgo"
 
 // Automatically extract the tool name from the path.
-const GO_TOOL_NAME = GO_TOOL_PATH.split("/")[GO_TOOL_PATH.split("/").length - 1].split("@")[0];
+const GO_TOOL_NAME = LATEST_GO_TOOL_PATH.split("/")[LATEST_GO_TOOL_PATH.split("/").length - 1].split("@")[0];
 
 // Used to track the server's child process throughout the extension.
 let serverProcess: ChildProcess | null = null;
@@ -56,7 +57,7 @@ async function isToolInstalled(): Promise<boolean> {
  */
 async function promptAndInstallTool(): Promise<boolean> {
   const selection = await vscode.window.showWarningMessage(
-    `The required tool "${GO_TOOL_NAME}" is not installed. Would you like to install it now via 'go install ${GO_TOOL_PATH}'?`,
+    `The required tool "${GO_TOOL_NAME}" is not installed. Would you like to install it now via 'go install ${LATEST_GO_TOOL_PATH}'?`,
     "Install",
     "Cancel",
   );
@@ -64,12 +65,12 @@ async function promptAndInstallTool(): Promise<boolean> {
   if (selection === "Install") {
     outputChannel.show(); // Show the output panel.
     outputChannel.appendLine(
-      `[Install] Installing ${GO_TOOL_NAME} via "go install ${GO_TOOL_PATH}"...`,
+      `[Install] Installing ${GO_TOOL_NAME} via "go install ${LATEST_GO_TOOL_PATH}"...`,
     );
 
     try {
       // Execute the 'go install' command.
-      const { stdout, stderr } = await exec(`go install ${GO_TOOL_PATH}`);
+      const { stdout, stderr } = await exec(`go install ${LATEST_GO_TOOL_PATH}`);
       if (stderr) {
         outputChannel.appendLine(
           `[Install] Encountered warnings/errors: ${stderr}`,
@@ -293,7 +294,8 @@ async function getLocalToolVersion(binaryPath: string): Promise<string | null> {
   try {
     const { stdout } = await exec(`go version -m -json "${binaryPath}"`);
     const data: GoMcpServerData = JSON.parse(stdout);
-    return data.Main.Version.split("-").pop() || null;
+
+    return data.Main.Version
   } catch (error) {
     outputChannel.appendLine(
       `[UpdateCheck] Failed to get local version: ${error}`,
@@ -302,13 +304,7 @@ async function getLocalToolVersion(binaryPath: string): Promise<string | null> {
   }
 }
 
-/**
- * Fetches the version of the latest commit on the default branch of a GitHub repository.
- * It first tries to find a git tag pointing to the latest commit. If found, it returns the tag.
- * If no tag is found, it falls back to returning the short commit hash as the version identifier.
- *
- * @returns A promise that resolves to a version string (e.g., "1.2.3" from a tag, or "abcdef1" from a commit hash) or null on failure.
- */
+
 async function getLatestToolVersion(): Promise<string | null> {
   interface GitHubTag {
     name: string;
@@ -316,44 +312,23 @@ async function getLatestToolVersion(): Promise<string | null> {
       sha: string;
     };
   }
-  interface GitHubBranchInfo {
-    commit: {
-      sha: string;
-    };
-  }
   try {
-    const defaultBranch = "master";
-    const branchInfoUrl = `https://api.github.com/repos/${GITHUB_REPO}/branches/${defaultBranch}`;
-    const branchInfoResponse = await axios.get<GitHubBranchInfo>(
-      branchInfoUrl,
-      { timeout: 5000 },
-    );
-    const latestCommitSha = branchInfoResponse.data.commit.sha;
-
-    if (!latestCommitSha) {
-      return null;
-    }
-
     const tagsUrl = `https://api.github.com/repos/${GITHUB_REPO}/tags`;
     const tagsResponse = await axios.get<GitHubTag[]>(tagsUrl, {
       timeout: 5000,
     });
-    const tags = tagsResponse.data;
-
-    for (const tag of tags) {
-      if (tag.name.startsWith("vscext")){
-        continue
-      }
-      if (tag.commit.sha === latestCommitSha) {
-        // Found a tag that points directly to the latest commit. This is our version.
-        const version = semver.clean(tag.name); // Clean up prefixes like 'v'
-        if (version) {
-          return version;
+    const versions = tagsResponse.data
+      .map(tag => {
+        // Skip tags that start with 'vscext'
+        if (tag.name.startsWith("vscext")) {
+          return null;
         }
-      }
-    }
+        return semver.clean(tag.name);
+      })
+      .filter((v): v is string => v !== null);
 
-    return latestCommitSha;
+    const sortedVersions = versions.sort(semver.rcompare);
+    return sortedVersions[0] || null;
   } catch (error: any) {
     return null;
   }
@@ -369,7 +344,7 @@ async function getBinaryPath(): Promise<string | null> {
   }
 }
 
-async function runUpdate() {
+async function runUpdate(version: string) {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -380,9 +355,9 @@ async function runUpdate() {
       try {
         outputChannel.show();
         outputChannel.appendLine(
-          `[Update] Running "go install ${GO_TOOL_PATH}"...`,
+          `[Update] Running "go install ${GO_TOOL_PATH}@${version}"...`,
         );
-        await exec(`go install ${GO_TOOL_PATH}`);
+        await exec(`go install ${GO_TOOL_PATH}@${version}`);
         outputChannel.appendLine(
           `[Update] ✔️ Successfully updated ${GO_TOOL_NAME}.`,
         );
@@ -420,21 +395,28 @@ async function checkForUpdates() {
     return;
   }
 
-  const shortRemoteVer = remoteVersion.slice(0,7)
-  const shortLocalVer = localVersion.slice(0,7);
-  if (shortRemoteVer !== shortLocalVer) {
+  let shouldUpdate = false;
+  const cleanLocalVersion = semver.clean(localVersion);
+  if (!cleanLocalVersion) {
+    shouldUpdate = true;
     outputChannel.appendLine(
-      `[UpdateCheck] A new version (${shortRemoteVer}) is available.`,
+      `[UpdateCheck] Local version "${localVersion}" is not a standard semantic version. Recommending update to ${remoteVersion}.`,
     );
+  }  else if (semver.gt(remoteVersion, cleanLocalVersion)) {
+    shouldUpdate = true;
+    outputChannel.appendLine(
+      `[UpdateCheck] A stable version is available. Local: ${cleanLocalVersion}, Remote: ${remoteVersion}.`,
+    );
+  }
+
+  if (shouldUpdate) {
     const selection = await vscode.window.showInformationMessage(
-      `A new version (${shortRemoteVer}) of ${GO_TOOL_NAME} is available.`,
+      `A new stable version (${remoteVersion}) of ${GO_TOOL_NAME} is available.`,
       "Update Now",
     );
 
     if (selection === "Update Now") {
-      await runUpdate();
+      await runUpdate(remoteVersion);
     }
-  } else {
-    outputChannel.appendLine("[UpdateCheck] Tool is up to date.");
   }
 }

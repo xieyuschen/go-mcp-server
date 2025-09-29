@@ -149,7 +149,6 @@ func listStdlibPackages(_ context.Context, _ *mcp.CallToolRequest, input IEmpty)
 	return nil, &OStdlibSymbols{StdLibs: stdLibMap}, nil
 }
 
-
 func listProjectUsedModules(_ context.Context, _ *mcp.CallToolRequest, input IUsedModules) (*mcp.CallToolResult, *OProjectUsedModules, error) {
 	analyzer, err := New(input.Cwd)
 	if err != nil {
@@ -195,7 +194,7 @@ func checkPackageExists(_ context.Context, _ *mcp.CallToolRequest, input IPackag
 	pkg, err := analyser.projectSinglePackage(input.PackagePath, false)
 	if err != nil || pkg == nil {
 		o := &OCheck{
-			Validated:  false,
+			Validated: false,
 			Explanation: fmt.Sprintf(`failed to find the existence of package '%s': %s.
 It may be caused by the package doensn't exist in current module, 
 or you want to load a package from another module but haven't added in go.mod file yet.`, input.PackagePath, err.Error()),
@@ -204,7 +203,7 @@ or you want to load a package from another module but haven't added in go.mod fi
 	}
 
 	o := &OCheck{
-		Validated:  true,
+		Validated:   true,
 		Explanation: fmt.Sprintf("package '%s' exists", input.PackagePath),
 	}
 	return nil, o, nil
@@ -218,7 +217,7 @@ func checkSymbolExists(_ context.Context, _ *mcp.CallToolRequest, input ICheck) 
 	pkg, err := analyser.projectSinglePackage(input.Path, true)
 	if err != nil || pkg == nil {
 		o := &OCheck{
-			Validated:  false,
+			Validated: false,
 			Explanation: fmt.Sprintf(`failed to find the existence of package '%s': %s.
 It may be caused by the package doensn't exist in current module, 
 or you want to load a package from another module but haven't added in go.mod file yet.`, input.Path, err.Error()),
@@ -236,13 +235,13 @@ or you want to load a package from another module but haven't added in go.mod fi
 
 	if !found {
 		o := &OCheck{
-			Validated:  false,
+			Validated:   false,
 			Explanation: fmt.Sprintf("failed to find symbol '%s' in package '%s'", input.Symbol, input.Path),
 		}
 		return nil, o, nil
 	}
 	o := &OCheck{
-		Validated:  true,
+		Validated: true,
 	}
 	return nil, o, nil
 }

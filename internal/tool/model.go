@@ -13,15 +13,14 @@ type IGoProjectPackage struct {
 }
 
 type ICheck struct {
-	Cwd         string `json:"cwd" jsonschema:"the current working directory to find the go.mod file"`
-	Path string `json:"path" jsonschema:"the import path of the package to check"`
+	Cwd    string `json:"cwd" jsonschema:"the current working directory to find the go.mod file"`
+	Path   string `json:"path" jsonschema:"the import path of the package to check"`
 	Symbol string `json:"symbol" jsonschema:"the symbol to check, if not set, only check the package existence"`
 }
 type IPackageInfo struct {
 	PackagePath string `json:"package_path" jsonschema:"the import path of the package"`
 	Cwd         string `json:"cwd" jsonschema:"the current working directory to find the go.mod file"`
 }
-
 
 // ===== Output ====
 type OGoInfo struct {
@@ -47,7 +46,7 @@ type OGoPackage struct {
 }
 
 type OCheck struct {
-	Validated  bool   `json:"validated" jsonschema:"whether the check is successful"`
+	Validated   bool   `json:"validated" jsonschema:"whether the check is successful"`
 	Explanation string `json:"explanation,omitempty" jsonschema:"if not validated, the explanation of the failure"`
 }
 
