@@ -330,6 +330,8 @@ async function getLocalToolVersion(binaryPath: string): Promise<string | null> {
   }
 }
 
+// getLatestToolVersion fetches the latest stable version from GitHub releases.
+// all vscext tags are ignored.
 async function getLatestToolVersion(): Promise<string | null> {
   interface GitHubTag {
     name: string;
@@ -411,37 +413,40 @@ async function checkForUpdates() {
     return;
   }
 
-  const [localVersion, remoteVersion] = await Promise.all([
+  // clean remote version is used because later we may need to compare it with local version.
+  // while semver only accepts clean versions.
+  const [localVersion, cleanRemoteVersion] = await Promise.all([
     getLocalToolVersion(binaryPath),
     getLatestToolVersion(),
   ]);
 
-  if (!localVersion || !remoteVersion) {
+  if (!localVersion || !cleanRemoteVersion) {
     return;
   }
 
   let shouldUpdate = false;
   const cleanLocalVersion = semver.clean(localVersion);
+  const newVersion = `v${cleanRemoteVersion}`;
   if (!cleanLocalVersion) {
     shouldUpdate = true;
     outputChannel.appendLine(
-      `[UpdateCheck] Local version "${localVersion}" is not a standard semantic version. Recommending update to ${remoteVersion}.`
+      `[UpdateCheck] Local version "${localVersion}" is not a standard semantic version. Recommending update to ${newVersion}.`
     );
-  } else if (semver.gt(remoteVersion, cleanLocalVersion)) {
+  } else if (semver.gt(cleanRemoteVersion, cleanLocalVersion)) {
     shouldUpdate = true;
     outputChannel.appendLine(
-      `[UpdateCheck] A stable version is available. Local: ${cleanLocalVersion}, Remote: ${remoteVersion}.`
+      `[UpdateCheck] A stable version is available. Local: ${cleanLocalVersion}, Remote: ${newVersion}.`
     );
   }
 
   if (shouldUpdate) {
     const selection = await vscode.window.showInformationMessage(
-      `A new stable version (${remoteVersion}) of ${GO_TOOL_NAME} is available.`,
+      `A new stable version (${newVersion}) of ${GO_TOOL_NAME} is available.`,
       "Update Now"
     );
 
     if (selection === "Update Now") {
-      await runUpdate(remoteVersion);
+      await runUpdate(newVersion);
     }
   }
 }
