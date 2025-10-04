@@ -2,7 +2,7 @@
   "name": "go-mcp-server",
   "displayName": "GO MCP Server",
   "description": "Model Context Protocol (MCP) implementation for llm to better understand go language written projects.",
-  "version": "0.0.12",
+  "version": "0.0.14",
   "publisher": "go-mcp-server",
   "repository": {
     "type": "git",
@@ -14,13 +14,14 @@
     "vscode": "^1.104.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "AI",
+    "Chat"
   ],
   "main": "./dist/extension",
   "activationEvents": [
-    "workspaceContains:**/*.go",
-    "workspaceContains:**/go.mod",
-    "workspaceContains:**/go.work"
+    "workspaceContains:go.mod",
+    "workspaceContains:go.work"
   ],
   "extensionKind": [
     "workspace"
