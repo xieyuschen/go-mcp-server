@@ -1,3 +1,8 @@
+# Archived
+
+This project is archived in favour of [**gopls-mcp**](https://github.com/xieyuschen/gopls-mcp), a more powerful mcp server.
+
+
 # go-mcp-server
 
 Model Context Protocol (MCP) implementation for llm to better understand go language written projects.
